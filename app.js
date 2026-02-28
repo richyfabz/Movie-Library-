@@ -117,12 +117,18 @@ async function enrichFrontItem() {
   const item = SliderDom.querySelector('.item');
   if (!item) return;
 
+  // Guard IMMEDIATELY (before any await) to prevent race conditions
+  if (item.dataset.enriched === 'true') return;
+  item.dataset.enriched = 'true'; // Set BEFORE the async fetch
+
   // Find which title this slide is showing
   const h1    = item.querySelector('h1');
   const title = h1?.textContent?.trim();
 
-  // If already enriched with TMDB data, skip
-  if (item.dataset.enriched === 'true') return;
+  const h4      = item.querySelector('h4');
+  const details = item.querySelector('.details');
+  if (h4) h4.textContent = '';
+  if (details) details.innerHTML = '';
 
   // Find original title from MOVIE_TITLES by matching h1 text loosely
   const matchedTitle = MOVIE_TITLES.find(t =>
@@ -134,11 +140,8 @@ async function enrichFrontItem() {
 
   // Update text
   if (h1) h1.textContent = data.title;
-
-  const h4 = item.querySelector('h4');
   if (h4) h4.textContent = data.overview;
 
-  const details = item.querySelector('.details');
   if (details) {
     details.innerHTML = `
       <p>${data.year}</p>
@@ -195,7 +198,7 @@ async function enrichFrontItem() {
     });
 
     // Favourite click
-    const favBtn = extras.querySelector('.fav-btn');
+    const favBtn = favBtn2 = extras.querySelector('.fav-btn');
     favBtn.addEventListener('click', () => {
       const movieTitle = favBtn.dataset.title;
       let saved        = JSON.parse(localStorage.getItem('favourites') || '[]');
@@ -211,9 +214,6 @@ async function enrichFrontItem() {
       localStorage.setItem('favourites', JSON.stringify(saved));
     });
   }
-
-  // Mark as enriched so we don't run again on this slide
-  item.dataset.enriched = 'true';
 }
 
 // Search bar 
@@ -413,7 +413,7 @@ function injectStyles() {
   document.head.appendChild(style);
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// Init 
 injectStyles();
 injectSearchBar();
 enrichFrontItem(); // Only enrich the first visible slide on load
