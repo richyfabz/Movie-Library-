@@ -1,9 +1,9 @@
-const TMDB_KEY     = '01858ee74d59641a015ff873f8d9ef60';
-const TMDB_BASE    = 'https://api.themoviedb.org/3';
-const TMDB_IMG     = 'https://image.tmdb.org/t/p/w500';
-const YT_SEARCH    = 'https://www.youtube.com/results?search_query=';
+const TMDB_KEY  = '01858ee74d59641a015ff873f8d9ef60';
+const TMDB_BASE = 'https://api.themoviedb.org/3';
+const TMDB_IMG  = 'https://image.tmdb.org/t/p/w500';
+const YT_SEARCH = 'https://www.youtube.com/results?search_query=';
 
-// Movies in your carousel 
+// Must match your HTML slide order exactly
 const MOVIE_TITLES = [
   'Squid Game',
   'One Piece',
@@ -13,25 +13,28 @@ const MOVIE_TITLES = [
   'Jujutsu Kaisen',
 ];
 
-//  DOM refs 
+// Cache fetched data so we never fetch the same title twice
+const tmdbCache = {};
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
 const nextDom            = document.getElementById('next');
 const prevDom            = document.getElementById('prev');
 const carouselDom        = document.querySelector('.carousel');
 const SliderDom          = carouselDom.querySelector('.list');
 const thumbnailBorderDom = document.querySelector('.carousel .thumbnail');
-let   thumbnailItemsDom  = thumbnailBorderDom.querySelectorAll('.item');
+const thumbnailItemsDom  = thumbnailBorderDom.querySelectorAll('.item');
+const timeRunning        = 2000;
+let   runTimeOut;
 
-//Carousel logic (unchanged) 
+// ── Carousel ──────────────────────────────────────────────────────────────────
 thumbnailBorderDom.appendChild(thumbnailItemsDom[0]);
-const timeRunning = 2000;
-let runTimeOut;
 
 nextDom.onclick = () => showSlider('next');
 prevDom.onclick = () => showSlider('prev');
 
 function showSlider(type) {
-  const sliderItems = SliderDom.querySelectorAll('.carousel .list .item');
-  const thumbItems  = document.querySelectorAll('.carousel .thumbnail .item');
+  const sliderItems = SliderDom.querySelectorAll('.item');
+  const thumbItems  = thumbnailBorderDom.querySelectorAll('.item');
 
   if (type === 'next') {
     SliderDom.appendChild(sliderItems[0]);
@@ -47,153 +50,173 @@ function showSlider(type) {
   runTimeOut = setTimeout(() => {
     carouselDom.classList.remove('next');
     carouselDom.classList.remove('prev');
+    // Enrich the new front item after animation settles
+    enrichFrontItem();
   }, timeRunning);
 }
 
-// TMDB helpers 
-
-// Search TMDB for a title, return first TV or movie result
+// ── TMDB fetch (with cache) ───────────────────────────────────────────────────
 async function fetchTMDB(title) {
+  if (tmdbCache[title]) return tmdbCache[title];
+
   try {
-    // Try TV first - more likely to be a show, and we get seasons/genre easier
-    const tvRes  = await fetch(`${TMDB_BASE}/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=en-US&page=1`);
+    // Try TV first
+    const tvRes  = await fetch(`${TMDB_BASE}/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=en-US`);
     const tvData = await tvRes.json();
-    if (tvData.results && tvData.results.length > 0) {
-      const show = tvData.results[0];
-      // Fetch full details for runtime/genres
-      const detailRes  = await fetch(`${TMDB_BASE}/tv/${show.id}?api_key=${TMDB_KEY}&language=en-US`);
-      const detail     = await detailRes.json();
-      return {
-        type:     'tv',
-        id:       show.id,
+
+    if (tvData.results?.length > 0) {
+      const show      = tvData.results[0];
+      const detailRes = await fetch(`${TMDB_BASE}/tv/${show.id}?api_key=${TMDB_KEY}&append_to_response=content_ratings`);
+      const detail    = await detailRes.json();
+      const usRating  = detail.content_ratings?.results?.find(r => r.iso_3166_1 === 'US')?.rating || 'TV-MA';
+
+      const result = {
         title:    detail.name,
-        year:     detail.first_air_date ? detail.first_air_date.slice(0, 4) : 'N/A',
-        rating:   detail.content_ratings?.results?.find(r => r.iso_3166_1 === 'US')?.rating || 'TV-MA',
+        year:     detail.first_air_date?.slice(0, 4) || 'N/A',
+        rating:   usRating,
         seasons:  detail.number_of_seasons ? `${detail.number_of_seasons} Season${detail.number_of_seasons > 1 ? 's' : ''}` : 'N/A',
         genre:    detail.genres?.[0]?.name || 'N/A',
-        overview: detail.overview,
-        poster:   detail.poster_path ? `${TMDB_IMG}${detail.poster_path}` : null,
-        score:    detail.vote_average ? detail.vote_average.toFixed(1) : 'N/A',
+        overview: detail.overview || '',
+        score:    detail.vote_average?.toFixed(1) || 'N/A',
       };
+      tmdbCache[title] = result;
+      return result;
     }
 
-    // Fallback to movie
-    const movRes  = await fetch(`${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=en-US&page=1`);
+    // Fallback: movie
+    const movRes  = await fetch(`${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=en-US`);
     const movData = await movRes.json();
-    if (movData.results && movData.results.length > 0) {
-      const movie      = movData.results[0];
-      const detailRes  = await fetch(`${TMDB_BASE}/movie/${movie.id}?api_key=${TMDB_KEY}&language=en-US`);
-      const detail     = await detailRes.json();
-      return {
-        type:     'movie',
-        id:       movie.id,
+
+    if (movData.results?.length > 0) {
+      const movie     = movData.results[0];
+      const detailRes = await fetch(`${TMDB_BASE}/movie/${movie.id}?api_key=${TMDB_KEY}&append_to_response=release_dates`);
+      const detail    = await detailRes.json();
+      const cert      = detail.release_dates?.results?.find(r => r.iso_3166_1 === 'US')?.release_dates?.[0]?.certification || 'PG-13';
+
+      const result = {
         title:    detail.title,
-        year:     detail.release_date ? detail.release_date.slice(0, 4) : 'N/A',
-        rating:   detail.release_dates?.results?.find(r => r.iso_3166_1 === 'US')?.release_dates?.[0]?.certification || 'PG-13',
+        year:     detail.release_date?.slice(0, 4) || 'N/A',
+        rating:   cert,
         seasons:  detail.runtime ? `${detail.runtime} min` : 'N/A',
         genre:    detail.genres?.[0]?.name || 'N/A',
-        overview: detail.overview,
-        poster:   detail.poster_path ? `${TMDB_IMG}${detail.poster_path}` : null,
-        score:    detail.vote_average ? detail.vote_average.toFixed(1) : 'N/A',
+        overview: detail.overview || '',
+        score:    detail.vote_average?.toFixed(1) || 'N/A',
       };
+      tmdbCache[title] = result;
+      return result;
     }
-    return null;
   } catch (e) {
-    console.error('TMDB fetch error:', e);
-    return null;
+    console.warn('TMDB fetch failed for:', title, e);
   }
+  return null;
 }
 
-// Enrich carousel with real TMDB data 
-async function enrichCarousel() {
-  const items = SliderDom.querySelectorAll('.item');
+// ── Enrich only the FRONT (visible) slide ─────────────────────────────────────
+async function enrichFrontItem() {
+  // The first .item in .list is always the visible one
+  const item = SliderDom.querySelector('.item');
+  if (!item) return;
 
-  for (let i = 0; i < items.length; i++) {
-    const title = MOVIE_TITLES[i];
-    if (!title) continue;
-    const data = await fetchTMDB(title);
-    if (!data) continue;
+  // Find which title this slide is showing
+  const h1    = item.querySelector('h1');
+  const title = h1?.textContent?.trim();
 
-    const item    = items[i];
-    const h1      = item.querySelector('h1');
-    const h4      = item.querySelector('h4');
-    const details = item.querySelector('.details');
+  // If already enriched with TMDB data, skip
+  if (item.dataset.enriched === 'true') return;
 
-    if (h1) h1.textContent = data.title;
-    if (h4) h4.textContent = data.overview;
-    if (details) {
-      details.innerHTML = `
-        <p>${data.year}</p>
-        <p>${data.rating}</p>
-        <p>${data.seasons}</p>
-        <p>${data.genre}</p>
-      `;
-    }
+  // Find original title from MOVIE_TITLES by matching h1 text loosely
+  const matchedTitle = MOVIE_TITLES.find(t =>
+    title?.toLowerCase().includes(t.toLowerCase().split(' ')[0])
+  ) || title;
 
-    // Trailer button → YouTube
-    const trailerBtn = item.querySelector('.trailer-btn');
-    if (trailerBtn) {
-      trailerBtn.onclick = (e) => {
-        e.preventDefault();
-        window.open(`${YT_SEARCH}${encodeURIComponent(data.title + ' official trailer')}`, '_blank');
-      };
-    }
+  const data = await fetchTMDB(matchedTitle);
+  if (!data) return;
 
-    // Inject stars + favourites
-    const buttons = item.querySelector('.buttons');
-    if (buttons && !buttons.querySelector('.extras')) {
-      const savedRating = parseInt(localStorage.getItem(`rating-${data.title}`)) || 0;
-      const favs        = JSON.parse(localStorage.getItem('favourites') || '[]');
-      const isFav       = favs.includes(data.title);
+  // Update text
+  if (h1) h1.textContent = data.title;
 
-      const extras      = document.createElement('div');
-      extras.className  = 'extras';
-      extras.innerHTML  = `
-        <div class="star-rating" data-title="${data.title}">
-          ${[1,2,3,4,5].map(n =>
-            `<span class="star ${n <= savedRating ? 'active' : ''}" data-value="${n}">★</span>`
-          ).join('')}
-        </div>
-        <button class="fav-btn ${isFav ? 'fav-active' : ''}" data-title="${data.title}">
-          ${isFav ? '✓ Favourited' : '+ Add to Favourites'}
-        </button>
-        <span class="tmdb-score">⭐ ${data.score} TMDB</span>
-      `;
-      buttons.after(extras);
+  const h4 = item.querySelector('h4');
+  if (h4) h4.textContent = data.overview;
 
-      // Star clicks
-      extras.querySelectorAll('.star').forEach(star => {
-        star.addEventListener('click', () => {
-          const val        = parseInt(star.dataset.value);
-          const movieTitle = star.closest('.star-rating').dataset.title;
-          localStorage.setItem(`rating-${movieTitle}`, val);
-          extras.querySelectorAll('.star').forEach(s => {
-            s.classList.toggle('active', parseInt(s.dataset.value) <= val);
-          });
+  const details = item.querySelector('.details');
+  if (details) {
+    details.innerHTML = `
+      <p>${data.year}</p>
+      <p>${data.rating}</p>
+      <p>${data.seasons}</p>
+      <p>${data.genre}</p>
+    `;
+  }
+
+  // Trailer button → YouTube
+  const trailerBtn = item.querySelector('.trailer-btn');
+  if (trailerBtn) {
+    // Clone to remove old listeners
+    const newBtn = trailerBtn.cloneNode(true);
+    trailerBtn.replaceWith(newBtn);
+    newBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.open(`${YT_SEARCH}${encodeURIComponent(data.title + ' official trailer')}`, '_blank');
+    });
+  }
+
+  // Inject extras only if not already there
+  const buttons = item.querySelector('.buttons');
+  if (buttons && !item.querySelector('.extras')) {
+    const savedRating = parseInt(localStorage.getItem(`rating-${data.title}`)) || 0;
+    const favs        = JSON.parse(localStorage.getItem('favourites') || '[]');
+    const isFav       = favs.includes(data.title);
+
+    const extras      = document.createElement('div');
+    extras.className  = 'extras';
+    extras.innerHTML  = `
+      <div class="star-rating" data-title="${data.title}">
+        ${[1,2,3,4,5].map(n =>
+          `<span class="star ${n <= savedRating ? 'active' : ''}" data-value="${n}">★</span>`
+        ).join('')}
+      </div>
+      <button class="fav-btn ${isFav ? 'fav-active' : ''}" data-title="${data.title}">
+        ${isFav ? '✓ Favourited' : '+ Add to Favourites'}
+      </button>
+      <span class="tmdb-score">⭐ ${data.score} TMDB</span>
+    `;
+    buttons.after(extras);
+
+    // Star clicks
+    extras.querySelectorAll('.star').forEach(star => {
+      star.addEventListener('click', () => {
+        const val        = parseInt(star.dataset.value);
+        const movieTitle = star.closest('.star-rating').dataset.title;
+        localStorage.setItem(`rating-${movieTitle}`, val);
+        extras.querySelectorAll('.star').forEach(s => {
+          s.classList.toggle('active', parseInt(s.dataset.value) <= val);
         });
       });
+    });
 
-      // Favourite click
-      const favBtn = extras.querySelector('.fav-btn');
-      favBtn.addEventListener('click', () => {
-        const movieTitle = favBtn.dataset.title;
-        let saved        = JSON.parse(localStorage.getItem('favourites') || '[]');
-        if (saved.includes(movieTitle)) {
-          saved = saved.filter(f => f !== movieTitle);
-          favBtn.textContent = '+ Add to Favourites';
-          favBtn.classList.remove('fav-active');
-        } else {
-          saved.push(movieTitle);
-          favBtn.textContent = '✓ Favourited';
-          favBtn.classList.add('fav-active');
-        }
-        localStorage.setItem('favourites', JSON.stringify(saved));
-      });
-    }
+    // Favourite click
+    const favBtn = extras.querySelector('.fav-btn');
+    favBtn.addEventListener('click', () => {
+      const movieTitle = favBtn.dataset.title;
+      let saved        = JSON.parse(localStorage.getItem('favourites') || '[]');
+      if (saved.includes(movieTitle)) {
+        saved = saved.filter(f => f !== movieTitle);
+        favBtn.textContent = '+ Add to Favourites';
+        favBtn.classList.remove('fav-active');
+      } else {
+        saved.push(movieTitle);
+        favBtn.textContent = '✓ Favourited';
+        favBtn.classList.add('fav-active');
+      }
+      localStorage.setItem('favourites', JSON.stringify(saved));
+    });
   }
+
+  // Mark as enriched so we don't run again on this slide
+  item.dataset.enriched = 'true';
 }
 
-// Search bar 
+// ── Search bar ────────────────────────────────────────────────────────────────
 function injectSearchBar() {
   const nav = document.querySelector('nav');
   if (!nav) return;
@@ -219,21 +242,9 @@ function injectSearchBar() {
     debounce = setTimeout(() => searchTMDB(q), 350);
   });
 
-  btn.addEventListener('click', () => {
-    const q = input.value.trim();
-    if (q) searchTMDB(q);
-  });
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const q = input.value.trim();
-      if (q) searchTMDB(q);
-    }
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!wrapper.contains(e.target)) results.style.display = 'none';
-  });
+  btn.addEventListener('click', () => { const q = input.value.trim(); if (q) searchTMDB(q); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { const q = input.value.trim(); if (q) searchTMDB(q); } });
+  document.addEventListener('click', (e) => { if (!wrapper.contains(e.target)) results.style.display = 'none'; });
 }
 
 async function searchTMDB(query) {
@@ -242,11 +253,9 @@ async function searchTMDB(query) {
   results.style.display = 'block';
 
   try {
-    // TMDB multi-search covers movies, TV shows, and people in one call
     const res  = await fetch(`${TMDB_BASE}/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=en-US&page=1&include_adult=false`);
     const data = await res.json();
 
-    // Filter to only movies and TV shows
     const filtered = (data.results || [])
       .filter(r => r.media_type === 'movie' || r.media_type === 'tv')
       .slice(0, 6);
@@ -257,11 +266,11 @@ async function searchTMDB(query) {
     }
 
     results.innerHTML = filtered.map(item => {
-      const title   = item.media_type === 'tv' ? item.name : item.title;
-      const year    = (item.first_air_date || item.release_date || '').slice(0, 4);
-      const poster  = item.poster_path ? `${TMDB_IMG}${item.poster_path}` : 'image/Thumbnail.png';
-      const type    = item.media_type === 'tv' ? 'TV Show' : 'Movie';
-      const rating  = item.vote_average ? item.vote_average.toFixed(1) : 'N/A';
+      const title  = item.media_type === 'tv' ? item.name : item.title;
+      const year   = (item.first_air_date || item.release_date || '').slice(0, 4);
+      const poster = item.poster_path ? `${TMDB_IMG}${item.poster_path}` : 'image/Thumbnail.png';
+      const type   = item.media_type === 'tv' ? 'TV Show' : 'Movie';
+      const rating = item.vote_average ? item.vote_average.toFixed(1) : 'N/A';
       return `
         <div class="search-item" data-title="${title}">
           <img src="${poster}" alt="${title}" onerror="this.src='image/Thumbnail.png'" />
@@ -273,9 +282,9 @@ async function searchTMDB(query) {
       `;
     }).join('');
 
-    results.querySelectorAll('.search-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const title = item.dataset.title;
+    results.querySelectorAll('.search-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const title = el.dataset.title;
         window.open(`${YT_SEARCH}${encodeURIComponent(title + ' official trailer')}`, '_blank');
         results.style.display = 'none';
         document.getElementById('searchInput').value = '';
@@ -288,9 +297,9 @@ async function searchTMDB(query) {
   }
 }
 
-// Styles 
+// ── Styles ────────────────────────────────────────────────────────────────────
 function injectStyles() {
-  const style       = document.createElement('style');
+  const style = document.createElement('style');
   style.textContent = `
     .search-wrapper {
       position: relative;
@@ -356,25 +365,13 @@ function injectStyles() {
     }
     .search-item:last-child { border-bottom: none; }
     .search-item:hover { background: rgba(255,0,64,0.12); }
-    .search-item img {
-      width: 42px;
-      height: 58px;
-      object-fit: cover;
-      border-radius: 6px;
-      flex-shrink: 0;
-    }
+    .search-item img { width: 42px; height: 58px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
     .search-item-info { display: flex; flex-direction: column; gap: 4px; }
     .search-title { color: #fff; font-size: 13px; font-weight: 600; }
     .search-year  { color: #999; font-size: 11px; }
-    .search-loading, .search-no-result {
-      padding: 16px;
-      color: #aaa;
-      font-size: 13px;
-      text-align: center;
-    }
+    .search-loading, .search-no-result { padding: 16px; color: #aaa; font-size: 13px; text-align: center; }
     .search-no-result strong { color: #fff; }
 
-    /* Stars & Extras */
     .extras {
       display: flex;
       align-items: center;
@@ -403,20 +400,9 @@ function injectStyles() {
     }
     .fav-btn:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
     .fav-btn.fav-active { background: #ff0040; border-color: #ff0040; }
-    .tmdb-score {
-      font-size: 12px;
-      color: #ffd700;
-      font-weight: 600;
-      white-space: nowrap;
-    }
+    .tmdb-score { font-size: 12px; color: #ffd700; font-weight: 600; white-space: nowrap; }
 
-    /* Header layout */
-    header {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
+    header { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 
     @media screen and (max-width: 678px) {
       .search-wrapper { padding: 0 10px; width: 100%; order: 3; }
@@ -430,4 +416,4 @@ function injectStyles() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 injectStyles();
 injectSearchBar();
-enrichCarousel();
+enrichFrontItem(); // Only enrich the first visible slide on load
