@@ -2,15 +2,7 @@
 
 A sleek, interactive movie library web app built with pure HTML, CSS, and JavaScript. Browse popular movies and anime series through an animated carousel, search for any title, watch trailers, rate your favourites, and save them to your personal list.
 
----
-
-## 📸 Preview
-
-> Add a screenshot or screen recording of your project here
-
----
-
-## ✨ Features
+## Features
 
 - **Animated Carousel** — smooth next/prev transitions with thumbnail navigation and a running progress bar
 - **Live Movie Search** — search any movie or series via the header search bar, powered by the OMDB API
@@ -20,22 +12,21 @@ A sleek, interactive movie library web app built with pure HTML, CSS, and JavaSc
 - **Add to Favourites** — bookmark your favourite titles with one click, saved to localStorage
 - **Fully Responsive** — works cleanly on mobile and desktop
 
----
 
-## 🛠️ Built With
+## Built With
 
 | Technology | Purpose |
 |---|---|
 | HTML5 | Structure and markup |
 | CSS3 | Styling, animations, and responsive layout |
 | JavaScript (Vanilla) | Carousel logic, API calls, ratings, favourites |
-| [OMDB API](https://www.omdbapi.com/) | Fetching real movie data |
+| [hemoviedb API](https://www.themoviedb.org/) | Fetching real movie data |
 | YouTube Search | Trailer redirects |
 | localStorage | Persisting ratings and favourites |
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 movie-library/
@@ -55,7 +46,7 @@ movie-library/
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### 1. Clone the repository
 
@@ -64,9 +55,9 @@ git clone https://github.com/richyfabz/Movie-Library-.git
 cd Movie-Library-
 ```
 
-### 2. Get a free OMDB API key
+### 2. Get a free TMDB API key
 
-- Go to [omdbapi.com](https://www.omdbapi.com/apikey.aspx)
+- Go to [themoviedb.org](https://www.themoviedb.org/settings/api)
 - Sign up for the **free tier** (1,000 requests/day)
 - Activate the key from your email
 
@@ -82,17 +73,9 @@ const API_KEY = 'your_api_key_here';
 
 No build tools needed — just open `index.html` in your browser directly, or use a local server:
 
-```bash
-# Using VS Code Live Server (recommended)
-# Right-click index.html → Open with Live Server
-
-# Or using Python
-python3 -m http.server 3000
-```
-
 ---
 
-## 🎮 How to Use
+## How to Use
 
 | Action | How |
 |---|---|
@@ -102,37 +85,19 @@ python3 -m http.server 3000
 | Rate a movie | Click the ⭐ stars below the movie info |
 | Save a favourite | Click **+ Add to Favourites** |
 
----
 
-## 🎞️ Movies Featured
-
-| Title | Genre | Year |
-|---|---|---|
-| Squid Game | Drama | 2021 |
-| One Piece | Action | 1999 |
-| Shogun | Drama | 2024 |
-| Demon Slayer | Action | 2019 |
-| Game of Thrones | Drama | 2011 |
-| Jujutsu Kaisen | Action | 2020 |
 
 ---
 
-## ⚠️ Notes
-
-- The OMDB free tier only supports requests from **localhost**. If you deploy this to a live domain, you'll need to either upgrade your OMDB plan or proxy API requests through a small backend.
-- Movie poster images are stored locally in the `/image` folder and are **not tracked by git** (excluded via `.gitignore`) due to file size.
-
----
-
-## 🙌 Acknowledgements
+##  Acknowledgements
 
 - Built as a project during training at **[Web3Bridge](https://www.web3bridge.com/)**
-- Movie data provided by [OMDB API](https://www.omdbapi.com/)
+- Movie data provided by [TMDB API](https://www.themoviedb.org/)
 - Carousel animation inspired by modern streaming UI patterns
 
 ---
 
-## 📄 License
+##  License
 
 This project is open source and available under the [MIT License](LICENSE).
 

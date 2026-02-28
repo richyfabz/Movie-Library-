@@ -3,7 +3,7 @@ const TMDB_BASE    = 'https://api.themoviedb.org/3';
 const TMDB_IMG     = 'https://image.tmdb.org/t/p/w500';
 const YT_SEARCH    = 'https://www.youtube.com/results?search_query=';
 
-// ── Movies in your carousel (must match HTML order exactly) ───────────────────
+// Movies in your carousel 
 const MOVIE_TITLES = [
   'Squid Game',
   'One Piece',
@@ -13,7 +13,7 @@ const MOVIE_TITLES = [
   'Jujutsu Kaisen',
 ];
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
+//  DOM refs 
 const nextDom            = document.getElementById('next');
 const prevDom            = document.getElementById('prev');
 const carouselDom        = document.querySelector('.carousel');
@@ -21,7 +21,7 @@ const SliderDom          = carouselDom.querySelector('.list');
 const thumbnailBorderDom = document.querySelector('.carousel .thumbnail');
 let   thumbnailItemsDom  = thumbnailBorderDom.querySelectorAll('.item');
 
-// ── Carousel logic (unchanged) ────────────────────────────────────────────────
+//Carousel logic (unchanged) 
 thumbnailBorderDom.appendChild(thumbnailItemsDom[0]);
 const timeRunning = 2000;
 let runTimeOut;
@@ -50,12 +50,12 @@ function showSlider(type) {
   }, timeRunning);
 }
 
-// ── TMDB helpers ──────────────────────────────────────────────────────────────
+// TMDB helpers 
 
 // Search TMDB for a title, return first TV or movie result
 async function fetchTMDB(title) {
   try {
-    // Try TV first (most of your titles are series)
+    // Try TV first - more likely to be a show, and we get seasons/genre easier
     const tvRes  = await fetch(`${TMDB_BASE}/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=en-US&page=1`);
     const tvData = await tvRes.json();
     if (tvData.results && tvData.results.length > 0) {
@@ -104,7 +104,7 @@ async function fetchTMDB(title) {
   }
 }
 
-// ── Enrich carousel with real TMDB data ───────────────────────────────────────
+// Enrich carousel with real TMDB data 
 async function enrichCarousel() {
   const items = SliderDom.querySelectorAll('.item');
 
@@ -193,7 +193,7 @@ async function enrichCarousel() {
   }
 }
 
-// ── Search bar ────────────────────────────────────────────────────────────────
+// Search bar 
 function injectSearchBar() {
   const nav = document.querySelector('nav');
   if (!nav) return;
@@ -288,7 +288,7 @@ async function searchTMDB(query) {
   }
 }
 
-// ── Styles for new features ───────────────────────────────────────────────────
+// Styles 
 function injectStyles() {
   const style       = document.createElement('style');
   style.textContent = `
