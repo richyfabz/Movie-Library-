@@ -3,7 +3,7 @@ const TMDB_BASE = 'https://api.themoviedb.org/3';
 const TMDB_IMG  = 'https://image.tmdb.org/t/p/w500';
 const YT_SEARCH = 'https://www.youtube.com/results?search_query=';
 
-// Must match your HTML slide order exactly
+// Must matches HTML slide order exactly
 const MOVIE_TITLES = [
   'Squid Game',
   'One Piece',
@@ -16,7 +16,7 @@ const MOVIE_TITLES = [
 // Cache fetched data so we never fetch the same title twice
 const tmdbCache = {};
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
+// DOM refs 
 const nextDom            = document.getElementById('next');
 const prevDom            = document.getElementById('prev');
 const carouselDom        = document.querySelector('.carousel');
@@ -26,7 +26,7 @@ const thumbnailItemsDom  = thumbnailBorderDom.querySelectorAll('.item');
 const timeRunning        = 2000;
 let   runTimeOut;
 
-// ── Carousel ──────────────────────────────────────────────────────────────────
+// Carousel 
 thumbnailBorderDom.appendChild(thumbnailItemsDom[0]);
 
 nextDom.onclick = () => showSlider('next');
@@ -55,7 +55,7 @@ function showSlider(type) {
   }, timeRunning);
 }
 
-// ── TMDB fetch (with cache) ───────────────────────────────────────────────────
+// TMDB fetch (with cache) 
 async function fetchTMDB(title) {
   if (tmdbCache[title]) return tmdbCache[title];
 
@@ -111,7 +111,7 @@ async function fetchTMDB(title) {
   return null;
 }
 
-// ── Enrich only the FRONT (visible) slide ─────────────────────────────────────
+
 async function enrichFrontItem() {
   // The first .item in .list is always the visible one
   const item = SliderDom.querySelector('.item');
@@ -216,7 +216,7 @@ async function enrichFrontItem() {
   item.dataset.enriched = 'true';
 }
 
-// ── Search bar ────────────────────────────────────────────────────────────────
+// Search bar 
 function injectSearchBar() {
   const nav = document.querySelector('nav');
   if (!nav) return;
@@ -297,7 +297,7 @@ async function searchTMDB(query) {
   }
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// Styles 
 function injectStyles() {
   const style = document.createElement('style');
   style.textContent = `
