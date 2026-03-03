@@ -112,31 +112,37 @@ async function fetchTMDB(title) {
 }
 
 
+// FIX: Clear content immediately, remove stale extras, fixed favBtn2 implicit global
 async function enrichFrontItem() {
-  // The first .item in .list is always the visible one
   const item = SliderDom.querySelector('.item');
   if (!item) return;
 
   // Guard IMMEDIATELY (before any await) to prevent race conditions
   if (item.dataset.enriched === 'true') return;
-  item.dataset.enriched = 'true'; // Set BEFORE the async fetch
+  item.dataset.enriched = 'true';
 
-  // Find which title this slide is showing
-  const h1    = item.querySelector('h1');
-  const title = h1?.textContent?.trim();
-
+  const h1      = item.querySelector('h1');
   const h4      = item.querySelector('h4');
   const details = item.querySelector('.details');
-  if (h4) h4.textContent = '';
+
+  // Clear ALL existing content immediately before async fetch
+  if (h4) h4.textContent = 'Loading...';
   if (details) details.innerHTML = '';
 
-  // Find original title from MOVIE_TITLES by matching h1 text loosely
+  // FIX: Remove any previously injected extras to prevent duplication/overlap
+  const oldExtras = item.querySelector('.extras');
+  if (oldExtras) oldExtras.remove();
+
+  const title = h1?.textContent?.trim();
   const matchedTitle = MOVIE_TITLES.find(t =>
     title?.toLowerCase().includes(t.toLowerCase().split(' ')[0])
   ) || title;
 
   const data = await fetchTMDB(matchedTitle);
-  if (!data) return;
+  if (!data) {
+    if (h4) h4.textContent = '';
+    return;
+  }
 
   // Update text
   if (h1) h1.textContent = data.title;
@@ -154,7 +160,6 @@ async function enrichFrontItem() {
   // Trailer button → YouTube
   const trailerBtn = item.querySelector('.trailer-btn');
   if (trailerBtn) {
-    // Clone to remove old listeners
     const newBtn = trailerBtn.cloneNode(true);
     trailerBtn.replaceWith(newBtn);
     newBtn.addEventListener('click', (e) => {
@@ -197,7 +202,7 @@ async function enrichFrontItem() {
       });
     });
 
-    // Favourite click
+    // FIX: Removed implicit global variable `favBtn2`
     const favBtn = extras.querySelector('.fav-btn');
     favBtn.addEventListener('click', () => {
       const movieTitle = favBtn.dataset.title;
