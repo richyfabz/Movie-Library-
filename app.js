@@ -198,7 +198,7 @@ async function enrichFrontItem() {
     });
 
     // Favourite click
-    const favBtn = favBtn2 = extras.querySelector('.fav-btn');
+    const favBtn = extras.querySelector('.fav-btn');
     favBtn.addEventListener('click', () => {
       const movieTitle = favBtn.dataset.title;
       let saved        = JSON.parse(localStorage.getItem('favourites') || '[]');
